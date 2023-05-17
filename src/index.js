@@ -1,10 +1,10 @@
 // @ts-check
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import spawn from 'cross-spawn';
-import minimist from 'minimist';
-import prompts from 'prompts';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import spawn from "cross-spawn";
+import minimist from "minimist";
+import prompts from "prompts";
 
 import {
   blue,
@@ -15,24 +15,24 @@ import {
   magenta,
   red,
   reset,
-  yellow
-} from 'kolorist';
+  yellow,
+} from "kolorist";
 
 /**
  * @typeof {Object} Argv
  * @property {string} [t]
  * @property {string} [template]
  * @property {string[]} [_]
- */ 
+ */
 
 /** @type {Argv} */
-const argv = minimist(process.argv.slice(2), { string: ['_'] });
+const argv = minimist(process.argv.slice(2), { string: ["_"] });
 
 /** @type {string} */
 const cwd = process.cwd();
 
 /** type {string} */
-const defaultTargetDir = 'web-components-project';
+const defaultTargetDir = "web-components-project";
 
 async function init() {
   const argTargetDir = formatTargetDir(argv._[0]);
@@ -44,25 +44,23 @@ async function init() {
   let result;
 
   try {
-    result = await prompts(
-      [
-        {
-          type: argTargetDir ? null : 'text',
-          name: 'projectName',
-          message: reset('Project name:'),
-          initial: defaultTargetDir,
-          onState: (state) => {
-            targetDir = formatTargetDir(state.value) || defaultTargetDir; 
-          },
+    result = await prompts([
+      {
+        type: argTargetDir ? null : "text",
+        name: "projectName",
+        message: reset("Project name:"),
+        initial: defaultTargetDir,
+        onState: (state) => {
+          targetDir = formatTargetDir(state.value) || defaultTargetDir;
         },
-      ]
-    );
+      },
+    ]);
   } catch (err) {
     console.log(err.message);
     return;
   }
 
-  console.log( result  );
+  console.log(result);
 }
 
 /**
@@ -71,7 +69,7 @@ async function init() {
  * @returns {string|undefined} The formatted target directory path, or undefined
  */
 function formatTargetDir(targetDir) {
-  return targetDir?.trim().replace(/\/+$/g, '');
+  return targetDir?.trim().replace(/\/+$/g, "");
 }
 
 /**
@@ -80,7 +78,7 @@ function formatTargetDir(targetDir) {
  * @returns {string} The project name.
  */
 function getProjectName(targetDir) {
-  return targetDir === '.' ? path.basename(path.resolve()) : targetDir;
+  return targetDir === "." ? path.basename(path.resolve()) : targetDir;
 }
 
-init().catch((e) => console.error(e) );
+init().catch((e) => console.error(e));
