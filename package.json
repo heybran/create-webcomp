@@ -16,12 +16,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "precommit": "prettier-quick --staged"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "pnpm run precomit"
-    }
+    "prepare": "husky install"
   },
   "repository": {
     "type": "git",
