@@ -25,6 +25,14 @@ import {
  * @property {string[]} [_]
  */
 
+/**
+ * @typeof {Object} UserAnswers
+ * @property {string} [projectName]
+ * @property {boolean} [overwrite]
+ * @property {string} []
+ * @property {string[]} [_]
+ */
+
 /** @type {Argv} */
 const argv = minimist(process.argv.slice(2), { string: ["_"] });
 
@@ -41,6 +49,7 @@ async function init() {
   let targetDir = argTargetDir || defaultTargetDir;
   const projectName = getProjectName(targetDir);
 
+  /** @type {prompts.Answers<UserAnswers>} */
   let result;
 
   try {
@@ -54,13 +63,36 @@ async function init() {
           targetDir = formatTargetDir(state.value) || defaultTargetDir;
         },
       },
+      {
+        type: () => {
+          return !fs.existsSync(targetDir) || isEmpty(targetDir)
+            ? null
+            : "confirm";
+        },
+        name: "overwrite",
+        message: () => {
+          return (
+            (targetDir === "."
+              ? "Current directory"
+              : `Target directory "${targetDir}"`) +
+            ` is not empty. Remove existing files and continue?`
+          );
+        },
+      },
     ]);
   } catch (err) {
     console.log(err.message);
     return;
   }
 
+  const { overwrite } = result;
   console.log(result);
+
+  const root = path.join(cwd, targetDir);
+
+  if (overwrite) {
+    emptyDir(root);
+  }
 }
 
 /**
@@ -79,6 +111,33 @@ function formatTargetDir(targetDir) {
  */
 function getProjectName(targetDir) {
   return targetDir === "." ? path.basename(path.resolve()) : targetDir;
+}
+
+/**
+ * Checks if a directory is empty.
+ * @param {string} path - The path to the directory to check.
+ * @returns {boolean} True if the directory is empty, false otherwise.
+ */
+function isEmpty(path) {
+  const files = fs.readdirSync(path);
+  return files.length === 0 || (files.length === 1 && files[0] === ".git");
+}
+
+/**
+ * Deletes all files and directories in a directory, except for the .git directory.
+ * @param {string} dir - The path to the directory to empty.
+ * @returns {void}
+ */
+function emptyDir(dir) {
+  if (!fs.existsSync(dir)) {
+    return;
+  }
+  for (const file of fs.readdirSync(dir)) {
+    if (file === ".git") {
+      continue;
+    }
+    fs.rmSync(path.resolve(dir, file), { recursive: true, force: true });
+  }
 }
 
 init().catch((e) => console.error(e));
