@@ -1,0 +1,6 @@
+arrowParens = "always"
+bracketSpacing = true
+quoteProps = "as-needed"
+semi = true
+tabWidth = 2
+trailingComma = "all"

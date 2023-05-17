@@ -1,0 +1,43 @@
+{
+  "name": "create-webcomp",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Brandon Zhang",
+  "description": "create-webcomp allows you to quickly scaffold a new web components project.",
+  "bin": {
+    "create-webcomp": "index.js"
+  },
+  "files": [
+    "index.js",
+    "template-*",
+    "dist"
+  ],
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+    "precommit": "prettier-quick --staged"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "pnpm run precomit"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heybran/create-webcomp.git"
+  },
+  "keywords": [
+    "javascript"
+  ],
+  "bugs": {
+    "url": "https://github.com/heybran/create-webcomp/issues"
+  },
+  "homepage": "https://github.com/heybran/create-webcomp#readme",
+  "devDependencies": {
+    "husky": "^8.0.3",
+    "kolorist": "^1.8.0",
+    "prettier": "^2.8.8",
+    "pretty-quick": "^3.1.3"
+  }
+}
