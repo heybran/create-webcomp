@@ -1,6 +1,6 @@
 {
   "name": "create-webcomp",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "type": "module",
   "license": "MIT",
   "author": "Brandon Zhang",
@@ -11,7 +11,8 @@
   "files": [
     "index.js",
     "template-*",
-    "dist"
+    "dist",
+    "_template_gitignore"
   ],
   "main": "index.js",
   "scripts": {
