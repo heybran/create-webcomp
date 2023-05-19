@@ -2,23 +2,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import spawn from "cross-spawn";
-import minimist from "minimist";
 import * as p from "@clack/prompts";
 import { bold, cyan, grey, yellow } from "kleur/colors";
-import prompts from "prompts";
-
-// import {
-//   blue,
-//   cyan,
-//   green,
-//   lightGreen,
-//   lightRed,
-//   magenta,
-//   red,
-//   reset,
-//   yellow,
-// } from "kolorist";
 
 import {
   formatTargetDir,
@@ -31,20 +16,7 @@ import {
   pkgFromUserAgent,
 } from "./util.js";
 
-/**
- * @typeof {Object} Argv
- * @property {string} [t]
- * @property {string} [template]
- * @property {string[]} [_]
- */
-
-/**
- * @typeof {Object} UserAnswers
- * @property {string} [projectName]
- * @property {boolean} [overwrite]
- * @property {string} []
- * @property {string[]} [_]
- */
+const spinner = p.spinner();
 
 /**
  * @typeof {Object} WebComponentsTemplate
@@ -52,6 +24,9 @@ import {
  * @property {string} title
  * @property {string} description
  */
+
+/** @type {string} */
+const cwd = process.cwd();
 
 /** @type Array<WebComponentsTemplate> **/
 const TEMPLATES = [
@@ -78,7 +53,7 @@ const { /** @type {string} */ version } = JSON.parse(
 
 // 1) Show welcome message
 console.log(`${grey(`create-webcomp version ${version}`)}`);
-p.intro(`Okies, let's get you started with a fresh web components project.`);
+p.intro(`Okies, let's get you started with a shiny web components project.`);
 
 /** @type {string} **/
 let targetDir = process.argv[2] || ".";
@@ -121,9 +96,9 @@ if (fs.existsSync(targetDir) && !isEmpty(targetDir)) {
     process.exit(0);
   }
 
-  emptyDir(path.join(process.cwd(), targetDir));
+  emptyDir(path.join(cwd, targetDir));
 } else {
-  fs.mkdirSync(path.join(process.cwd(), targetDir), { recursive: true });
+  fs.mkdirSync(path.join(cwd, targetDir), { recursive: true });
 }
 
 // 4) Choose a web components template
@@ -150,163 +125,93 @@ const options = await p.group(
   },
 );
 
-console.log(options);
-
-/** @type {Argv} */
-const argv = minimist(process.argv.slice(2), { string: ["_"] });
-
 /** @type {string} */
-const cwd = process.cwd();
+const projectName = getProjectName(targetDir);
 
-/** type {string} */
-const defaultTargetDir = "web-components-project";
+const pkgInfo = pkgFromUserAgent(process.env.npm_config_user_agent);
+const pkgManager = pkgInfo ? pkgInfo.name : "npm";
 
-async function init() {
-  const argTargetDir = formatTargetDir(argv._[0]);
-  const argTemplate = argv.template || argv.t;
-  const argStructure = argv.structure || argv.s;
+spinner.start(`Scaffolding your web components project`);
 
-  let targetDir = argTargetDir || defaultTargetDir;
-  const projectName = getProjectName(targetDir);
+// 5) Copy template folder into target directory
+const templateDir = path.resolve(
+  fileURLToPath(import.meta.url),
+  "../..",
+  `template-${options.template}`,
+);
 
-  /** @type {prompts.Answers<UserAnswers>} */
-  let result;
-
-  try {
-    result = await prompts([
-      {
-        type: argTargetDir ? null : "text",
-        name: "projectName",
-        message: reset("Project name:"),
-        initial: defaultTargetDir,
-        onState: (state) => {
-          targetDir = formatTargetDir(state.value) || defaultTargetDir;
-        },
-      },
-      {
-        type: () => {
-          return !fs.existsSync(targetDir) || isEmpty(targetDir)
-            ? null
-            : "confirm";
-        },
-        name: "overwrite",
-        message: () => {
-          return (
-            (targetDir === "."
-              ? "Current directory"
-              : `Target directory "${targetDir}"`) +
-            ` is not empty. Remove existing files and continue?`
-          );
-        },
-      },
-      {
-        type: () =>
-          isValidPackageName(getProjectName(targetDir)) ? null : "text",
-        name: "packageName",
-        message: reset("Package name:"),
-        initial: () => toValidPackageName(getProjectName(targetDir)),
-        validate: (dir) =>
-          isValidPackageName(dir) || "Invalid package.json name",
-      },
-      {
-        type: argStructure ? null : "select",
-        name: "structure",
-        message: reset("Select a web components structure:"),
-        initial: 0,
-        choices: STRUCTURES.map((structure) => {
-          return {
-            title: structure.display,
-            value: structure,
-          };
-        }),
-      },
-    ]);
-  } catch (err) {
-    console.log(err.message);
-    return;
+/**
+ * Writes content to a file, or copies a file from a template directory to a target directory.
+ * @param {string} file - The name of the file to write or copy.
+ * @param {string} [content] - The content to write to the file. If not provided, the file will be copied from a template directory.
+ * @returns {void}
+ */
+const write = (file, content) => {
+  const targetPath = path.join(cwd, targetDir, file);
+  if (content) {
+    fs.writeFileSync(targetPath, content);
+  } else {
+    copy(path.join(templateDir, file), targetPath);
   }
+};
 
-  const { overwrite, packageName, structure } = result;
-
-  const root = path.join(cwd, targetDir);
-
-  if (overwrite) {
-    emptyDir(root);
-  } else if (!fs.existsSync(root)) {
-    fs.mkdirSync(root, { recursive: true });
-  }
-
-  const pkgInfo = pkgFromUserAgent(process.env.npm_config_user_agent);
-  const pkgManager = pkgInfo ? pkgInfo.name : "npm";
-  const isYarn1 = pkgManager === "yarn" && pkgInfo?.version.startsWith("1.");
-
-  console.log(`\nScaffolding web components project in ${root}...`);
-
-  const templateDir = path.resolve(
-    fileURLToPath(import.meta.url),
-    "../..",
-    `template-${structure.name}`,
-  );
-
-  /**
-   * Writes content to a file, or copies a file from a template directory to a target directory.
-   * @param {string} file - The name of the file to write or copy.
-   * @param {string} [content] - The content to write to the file. If not provided, the file will be copied from a template directory.
-   * @returns {void}
-   */
-  const write = (file, content) => {
-    const targetPath = path.join(root, file);
-    if (content) {
-      fs.writeFileSync(targetPath, content);
-    } else {
-      copy(path.join(templateDir, file), targetPath);
-    }
-  };
-
-  // template files that we need to copy over target directory.
-  const files = fs.readdirSync(templateDir);
-  for (const file of files.filter(
-    (f) =>
-      !["package.json", "pnpm-lock.yaml", "dist", "node_modules"].includes(f),
-  )) {
-    write(file);
-  }
-
-  const _template_gitignore = path.join(
-    fileURLToPath(import.meta.url),
-    "../..",
-    `_template_gitignore`,
-  );
-
-  write(".gitignore", fs.readFileSync(_template_gitignore, "utf-8"));
-
-  const pkg = JSON.parse(
-    fs.readFileSync(path.join(templateDir, `package.json`), "utf-8"),
-  );
-
-  pkg.name = packageName || getProjectName(targetDir);
-  write("package.json", JSON.stringify(pkg, null, 2) + "\n");
-
-  const cdProjectName = path.relative(cwd, root);
-  if (root !== cwd) {
-    console.log(
-      `  cd ${
-        cdProjectName.includes(" ") ? `"${cdProjectName}"` : cdProjectName
-      }`,
-    );
-  }
-
-  switch (pkgManager) {
-    case "yarn":
-      console.log("  yarn");
-      console.log("  yarn dev");
-      break;
-    default:
-      console.log(`  ${pkgManager} install`);
-      console.log(`  ${pkgManager} run dev`);
-      break;
-  }
-  console.log();
+// template files that we need to copy over target directory.
+const files = fs.readdirSync(templateDir);
+for (const file of files.filter(
+  (f) =>
+    !["package.json", "pnpm-lock.yaml", "dist", "node_modules"].includes(f),
+)) {
+  write(file);
 }
 
-// init().catch((e) => console.error(e));
+// 6) Rename _template_gitignore to .gitignore
+const _template_gitignore = path.join(
+  fileURLToPath(import.meta.url),
+  "../..",
+  `_template_gitignore`,
+);
+
+write(".gitignore", fs.readFileSync(_template_gitignore, "utf-8"));
+
+// 7) Update package name
+const pkg = JSON.parse(
+  fs.readFileSync(path.join(templateDir, `package.json`), "utf-8"),
+);
+
+pkg.name = getProjectName(targetDir);
+write("package.json", JSON.stringify(pkg, null, 2) + "\n");
+
+await new Promise((res, rej) => {
+  setTimeout(() => {
+    res();
+  }, 2000);
+});
+
+spinner.stop(`Your project is ready!`);
+
+// 8) Show next steps
+console.log("\nNext steps:");
+let i = 1;
+
+const root = path.join(cwd, targetDir);
+const cdProjectName = path.relative(cwd, root);
+if (root !== cwd) {
+  console.log(
+    `  ${i++}: cd ${
+      cdProjectName.includes(" ")
+        ? `"${bold(cyan(cdProjectName))}"`
+        : bold(cyan(cdProjectName))
+    }`,
+  );
+}
+
+switch (pkgManager) {
+  case "yarn":
+    console.log(`  ${i++}: yarn`);
+    console.log(`  ${i++}: yarn dev`);
+    break;
+  default:
+    console.log(`  ${i++}: ${pkgManager} install`);
+    console.log(`  ${i++}: ${pkgManager} run dev`);
+    break;
+}
