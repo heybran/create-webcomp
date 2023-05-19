@@ -61,13 +61,13 @@ const STRUCTURES = [
     name: "css-js",
     display: `${magenta(
       "CSS + JavaScript",
-    )} ("./components/my-counter/MyCouter.css+MyCounter.js")`,
+    )} ("./components/my-counter/style.css+index.js")`,
   },
   {
     name: "html-css-js",
     display: `${green(
       "HTML + CSS + JavaScript",
-    )} ("./components/my-counter/MyCouter.html+MyCounter.css+MyCouter.js")`,
+    )} ("./components/my-counter/index.html+style.css+index.js")`,
   },
 ];
 
@@ -151,7 +151,6 @@ async function init() {
   }
 
   const { overwrite, packageName, structure } = result;
-  console.log(result);
 
   const root = path.join(cwd, targetDir);
 
