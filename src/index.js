@@ -85,14 +85,6 @@ const defaultTargetDir = "web-components-project";
  * @typedef {Object.<string, string|undefined>} RenameFiles
  */
 
-/**
- * A record of file name mappings for renaming files during project initialization.
- * @type {RenameFiles}
- */
-const renameFiles = {
-  _gitignore: ".gitignore",
-};
-
 async function init() {
   const argTargetDir = formatTargetDir(argv._[0]);
   const argTemplate = argv.template || argv.t;
@@ -188,7 +180,7 @@ async function init() {
    * @returns {void}
    */
   const write = (file, content) => {
-    const targetPath = path.join(root, renameFiles[file] ?? file);
+    const targetPath = path.join(root, file);
     if (content) {
       fs.writeFileSync(targetPath, content);
     } else {
@@ -198,9 +190,20 @@ async function init() {
 
   // template files that we need to copy over target directory.
   const files = fs.readdirSync(templateDir);
-  for (const file of files.filter((f) => f !== "package.json")) {
+  for (const file of files.filter(
+    (f) =>
+      !["package.json", "pnpm-lock.yaml", "dist", "node_modules"].includes(f),
+  )) {
     write(file);
   }
+
+  const _template_gitignore = path.join(
+    fileURLToPath(import.meta.url),
+    "../..",
+    `_template_gitignore`,
+  );
+
+  write(".gitignore", fs.readFileSync(_template_gitignore, "utf-8"));
 
   const pkg = JSON.parse(
     fs.readFileSync(path.join(templateDir, `package.json`), "utf-8"),
