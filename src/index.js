@@ -4,19 +4,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import spawn from "cross-spawn";
 import minimist from "minimist";
+import * as p from "@clack/prompts";
+import { bold, cyan, grey, yellow } from "kleur/colors";
 import prompts from "prompts";
 
-import {
-  blue,
-  cyan,
-  green,
-  lightGreen,
-  lightRed,
-  magenta,
-  red,
-  reset,
-  yellow,
-} from "kolorist";
+// import {
+//   blue,
+//   cyan,
+//   green,
+//   lightGreen,
+//   lightRed,
+//   magenta,
+//   red,
+//   reset,
+//   yellow,
+// } from "kolorist";
 
 import {
   formatTargetDir,
@@ -45,31 +47,110 @@ import {
  */
 
 /**
- * @typeof {Object} WebComponentsStructure
+ * @typeof {Object} WebComponentsTemplate
  * @property {string} name
- * @property {string} [display]
- * @property {string}
+ * @property {string} title
+ * @property {string} description
  */
 
-/** @type WebComponentsStructure **/
-const STRUCTURES = [
+/** @type Array<WebComponentsTemplate> **/
+const TEMPLATES = [
   {
     name: "js-only",
-    display: `${yellow("Standalone JavaScript")} ("./components/MyCouter.js")`,
+    title: `Standalone JavaScript`,
+    description: "e.g., ./components/MyCouter.js",
   },
   {
     name: "css-js",
-    display: `${magenta(
-      "CSS + JavaScript",
-    )} ("./components/my-counter/style.css+index.js")`,
+    title: "CSS + JavaScript",
+    description: "e.g., ./components/my-counter/style.css+index.js",
   },
   {
     name: "html-css-js",
-    display: `${green(
-      "HTML + CSS + JavaScript",
-    )} ("./components/my-counter/index.html+style.css+index.js")`,
+    title: "HTML + CSS + JavaScript",
+    description: "e.g., ./components/my-counter/index.html+style.css+index.js",
   },
 ];
+
+const { /** @type {string} */ version } = JSON.parse(
+  fs.readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
+);
+
+// 1) Show welcome message
+console.log(`${grey(`create-webcomp version ${version}`)}`);
+p.intro(`Okies, let's get you started with a fresh web components project.`);
+
+/** @type {string} **/
+let targetDir = process.argv[2] || ".";
+
+// 2) Get target directory
+if (targetDir === ".") {
+  const dir = await p.text({
+    message: "Where should we create your project?",
+    placeholder: "  (hit Enter to use current directory)",
+  });
+
+  // The isCancel function is a guard that detects when a user cancels a question with CTRL + C.
+  // You should handle this situation for each prompt,
+  // optionally providing a nice cancellation message with the cancel utility.
+  if (p.isCancel(dir)) {
+    p.cancel("Operation cancelled.");
+    process.exit(0);
+  }
+
+  if (dir) {
+    targetDir = dir;
+  }
+}
+
+targetDir = formatTargetDir(targetDir);
+
+// 3) Check if target directory is empty
+if (fs.existsSync(targetDir) && !isEmpty(targetDir)) {
+  const dir = await p.confirm({
+    message:
+      (targetDir === "."
+        ? "Current directory"
+        : `Target directory "${targetDir}"`) +
+      " is not empty. Remove existing files and continue?",
+    initialValue: false,
+  });
+
+  if (dir !== true) {
+    p.cancel("Operation cancelled.");
+    process.exit(0);
+  }
+
+  emptyDir(path.join(process.cwd(), targetDir));
+} else {
+  fs.mkdirSync(path.join(process.cwd(), targetDir), { recursive: true });
+}
+
+// 4) Choose a web components template
+const options = await p.group(
+  {
+    template: () => {
+      return p.select({
+        message: "Which web components template?",
+        options: TEMPLATES.map((template) => {
+          return {
+            label: template.title,
+            hint: template.description,
+            value: template.name,
+          };
+        }),
+      });
+    },
+  },
+  {
+    onCancel: () => {
+      p.cancel("Operation cancelled.");
+      process.exit(0);
+    },
+  },
+);
+
+console.log(options);
 
 /** @type {Argv} */
 const argv = minimist(process.argv.slice(2), { string: ["_"] });
@@ -79,11 +160,6 @@ const cwd = process.cwd();
 
 /** type {string} */
 const defaultTargetDir = "web-components-project";
-
-/**
- * A record of file name mappings for renaming files during project initialization.
- * @typedef {Object.<string, string|undefined>} RenameFiles
- */
 
 async function init() {
   const argTargetDir = formatTargetDir(argv._[0]);
@@ -233,4 +309,4 @@ async function init() {
   console.log();
 }
 
-init().catch((e) => console.error(e));
+// init().catch((e) => console.error(e));
