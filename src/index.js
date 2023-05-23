@@ -125,6 +125,50 @@ const options = await p.group(
   },
 );
 
+// 5) Choose a JavaScript runtime
+/**
+ * @typeof {Object} RuntimeOption
+ * @property {string} name
+ * @property {string} title
+ */
+
+/** @type Array<RuntimeOption> **/
+const RUNTIMES = [
+  {
+    name: "node",
+    title: `Node`,
+  },
+  {
+    name: "deno",
+    title: "Deno",
+  },
+];
+
+const runtimeOptions = await p.group(
+  {
+    pick: () => {
+      return p.select({
+        message: "Which JavaScript runtime will you use?",
+        options: RUNTIMES.map((runtime) => {
+          return {
+            label: runtime.title,
+            value: runtime.name,
+          };
+        }),
+      });
+    },
+  },
+  {
+    onCancel: () => {
+      p.cancel("Operation cancelled.");
+      process.exit(0);
+    },
+  },
+);
+
+/** @type {boolean} */
+const node = runtimeOptions.pick === "node";
+
 /** @type {string} */
 const projectName = getProjectName(targetDir);
 
@@ -133,11 +177,11 @@ const pkgManager = pkgInfo ? pkgInfo.name : "npm";
 
 spinner.start(`Scaffolding your web components project`);
 
-// 5) Copy template folder into target directory
+// 6) Copy template folder into target directory
 const templateDir = path.resolve(
   fileURLToPath(import.meta.url),
   "../..",
-  `template-${options.template}`,
+  `${node ? "" : "deno-"}template-${options.template}`,
 );
 
 /**
@@ -159,27 +203,37 @@ const write = (file, content) => {
 const files = fs.readdirSync(templateDir);
 for (const file of files.filter(
   (f) =>
-    !["package.json", "pnpm-lock.yaml", "dist", "node_modules"].includes(f),
+    ![
+      "package.json",
+      "pnpm-lock.yaml",
+      "deno.lock",
+      "dist",
+      "node_modules",
+    ].includes(f),
 )) {
   write(file);
 }
 
-// 6) Rename _template_gitignore to .gitignore
+// 7) Rename _template_gitignore to .gitignore
 const _template_gitignore = path.join(
   fileURLToPath(import.meta.url),
   "../..",
   `_template_gitignore`,
 );
 
-write(".gitignore", fs.readFileSync(_template_gitignore, "utf-8"));
+if (node) {
+  write(".gitignore", fs.readFileSync(_template_gitignore, "utf-8"));
+}
 
-// 7) Update package name
-const pkg = JSON.parse(
-  fs.readFileSync(path.join(templateDir, `package.json`), "utf-8"),
-);
+// 8) Update package name
+if (node) {
+  const pkg = JSON.parse(
+    fs.readFileSync(path.join(templateDir, `package.json`), "utf-8"),
+  );
 
-pkg.name = getProjectName(targetDir);
-write("package.json", JSON.stringify(pkg, null, 2) + "\n");
+  pkg.name = getProjectName(targetDir);
+  write("package.json", JSON.stringify(pkg, null, 2) + "\n");
+}
 
 await new Promise((res, rej) => {
   setTimeout(() => {
@@ -189,7 +243,7 @@ await new Promise((res, rej) => {
 
 spinner.stop(`Your project is ready!`);
 
-// 8) Show next steps
+// 9) Show next steps
 console.log("\nNext steps:");
 let i = 1;
 
@@ -205,13 +259,17 @@ if (root !== cwd) {
   );
 }
 
-switch (pkgManager) {
-  case "yarn":
-    console.log(`  ${i++}: yarn`);
-    console.log(`  ${i++}: yarn dev`);
-    break;
-  default:
-    console.log(`  ${i++}: ${pkgManager} install`);
-    console.log(`  ${i++}: ${pkgManager} run dev`);
-    break;
+if (node) {
+  switch (pkgManager) {
+    case "yarn":
+      console.log(`  ${i++}: yarn`);
+      console.log(`  ${i++}: yarn dev`);
+      break;
+    default:
+      console.log(`  ${i++}: ${pkgManager} install`);
+      console.log(`  ${i++}: ${pkgManager} run dev`);
+      break;
+  }
+} else if (runtimeOptions.pick === "deno") {
+  console.log(`  ${i++}: deno task dev`);
 }
